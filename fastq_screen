@@ -669,17 +669,19 @@ sub process_tag_files{
 		 } else{
 		 	open (IN_PROCESS_TAG, '<', $file) or die "Could not read file '$file' : $!";
 		 }
-		
+
+        warn "HERE: threads=$number_of_threads";
 		if ($zip_data_output) {    #Declared outside of subroutine
 		    if ($number_of_threads > 1) {
-                open ( OUT_PROCESS_TAG, "| pigz --processes $number_of_threads - > $outfile" ) or die "Couldn't write to file '$outfile' : $!";
+		        warn "Compressing with pigz using $number_of_threads threads\n" unless ($quiet);
+                open( OUT_PROCESS_TAG, "| pigz --processes $number_of_threads -c - > $outfile" ) or die "Couldn't write to file '$outfile' : $!";
 		    } else {
 		        open( OUT_PROCESS_TAG, "| gzip -c - > $outfile" ) or die "Couldn't write to file '$outfile' : $!";
             }
 		} else {
 			open( OUT_PROCESS_TAG, ">$outfile" ) or die "Could not write to '$outfile' : $!";
 		}
-		
+
 		my $filter_description = '';    #Print out the filter description to the first line of the filtered file (may not be first line of tagged file)
 		my $printed_description_flag = 0;
 		my $first_read = 1;
@@ -691,10 +693,10 @@ sub process_tag_files{
 
 			my $pass_filter_flag = pass_filter_data($header);
 			$pass_filter_flag = abs($pass_filter_flag - $inverse);    #Invert the filter: 0->1, 1->0
-				
+
 			if($first_read){
 				if($pass_filter_flag){        #Print read as is
-					print OUT_PROCESS_TAG $header . $rest_of_read;    
+					print OUT_PROCESS_TAG $header . $rest_of_read;
 					$printed_description_flag = 1;
 				} else {
 					$header =~ /#?.+(#.+?):\d+$/;
@@ -750,19 +752,19 @@ sub check_outfilename {
         warn "\tOutput graphics file '" . basename($outfile) . "' already exists\n";
         $parameters_problem = 1;
     }
-	
+
 	$outfile =~ s/_screen\.png$/_screen\.html/;
     if ( -e $outfile ) {
         warn "\tOutput HTML file '" . basename($outfile) . "' already exists\n";
         $parameters_problem = 1;
     }
-		
+
 	$outfile =~ s/_screen\.html$/_screen\.txt/;
     if ( -e $outfile ) {
         warn "\tOutput file '" . basename($outfile) . "' already exists\n";
         $parameters_problem = 1;
     }
-	
+
 	if($tag){
 		$outfile =~ s/_screen\.txt$/\.tagged\.fastq/;
 		$outfile .= '.gz' if($zip_data_output);
@@ -770,22 +772,22 @@ sub check_outfilename {
 			warn "\tOutput file '" . basename($outfile) . "' already exists\n";
 			$parameters_problem = 1;
 		}
-		
+
 		if(defined $filter){
 			$outfile =~ s/\.gz$//;
 			$outfile =~ s/\.(txt|seq|fastq|fq)$//i;
 			$outfile .= "_filter.fastq";
 			$outfile .= '.gz' if ($zip_data_output);
-			
+
 			if ( -e $outfile ) {
 				warn "\tOutput file '" . basename($outfile) . "' already exists\n";
 				$parameters_problem = 1;
 			}
 		}
 	}
-	
+
     if ($bisulfite) {    #Identify temp files made
- 
+
 	  	my $bisulfite_graphfile = basename($file);
 	    $bisulfite_graphfile =~ s/\.gz$//;
 	    $bisulfite_graphfile =~ s/\.(txt|seq|fastq|fq)$//i;
@@ -841,18 +843,18 @@ sub check_outfilename {
 }
 
 
-#Takes a FASTQ filename and generates an HTML summary report by reading the 
+#Takes a FASTQ filename and generates an HTML summary report by reading the
 #relevant summary file already produced by FastQ Screen
 sub make_html{
 
     my $file = $_[0];
-	
+
 	my $summary_file = basename($file);
     $summary_file = $outdir . $summary_file;
     $summary_file =~ s/\.gz$//;
     $summary_file =~ s/\.(txt|seq|fastq|fq)$//i;
     $summary_file .= "_screen.txt";
-	
+
     #Read in summary file
     open (SUMMARY, '<', $summary_file) or die "Could not open '$summary_file' for creating HTML summary report: $!";
     my ($version, $aligner, $subset) = split(/\t/, scalar <SUMMARY>);
@@ -868,7 +870,7 @@ sub make_html{
         my $line = $_;
         chomp $line;
 		next if($line =~ /^\s*$/);
-		
+
 		if( ($line eq '#Bisulfite read orientation results') or (scalar (@bisulfite_data)) ){    #In bisulfite region
 			push(@bisulfite_data, $line);
 		}else{
@@ -911,7 +913,7 @@ sub make_html{
 	    $pc_ctob =~ s/, $//;
 	    $pc_ob =~ s/, $//;
     }
-	
+
 	#Make HTML table
     my $pc_hit_no_genomes = pop(@data);
     $pc_hit_no_genomes =~ s/^%Hit_no_genomes: //;
@@ -944,16 +946,16 @@ sub make_html{
         push(@pc_one_hit_multiple_genomes, $sub_elements[9]);
         push(@pc_multiple_hits_multiple_genomes, $sub_elements[11]);
     }
-	
+
 	my $pc_one_hit_one_genome_string = join(', ', @pc_one_hit_one_genome) . ', 0';
 	my $pc_multiple_hits_one_genome_string = join(', ', @pc_multiple_hits_one_genome) . ', 0';
 	my $pc_one_hit_multiple_genomes_string = join(', ', @pc_one_hit_multiple_genomes) . ', 0';
 	my $pc_multiple_hits_multiple_genomes_string = join(', ', @pc_multiple_hits_multiple_genomes) . ', 0';
-	
+
 	#Hover required for nice editing of graphs
-	my $hoverinfo_samples = '';   
+	my $hoverinfo_samples = '';
 	my $hoverinfo_nohits = '';
-	
+
 	my $hover_pc_one_hit_one_genome_string = create_hover_string(@pc_one_hit_one_genome);
 	my $hover_pc_multiple_hits_one_genome_string = create_hover_string(@pc_multiple_hits_one_genome);
 	my $hover_pc_one_hit_multiple_genomes_string = create_hover_string(@pc_one_hit_multiple_genomes);
@@ -963,21 +965,21 @@ sub make_html{
 	my $nohits_string = $pc_hit_no_genomes;
 	my $hover_nohits_string = "'" . $nohits_string ."'";
 	my $hover_info_bisulfite_samples = '';
-	
+
 	foreach my $species (@species){
 		$species_string .= "'" . $species . "', ";
 		$hoverinfo_samples .= "'text', ";
-		$hover_info_bisulfite_samples .= "'text', ";	
+		$hover_info_bisulfite_samples .= "'text', ";
 		$hoverinfo_nohits .= "'skip', ";
 		$nohits_string = "0, " . $nohits_string;
 		$hover_nohits_string = 	"'0', " . $hover_nohits_string;
 	}
-		
+
 	$species_string .= "'Hit_No_Genomes'";
 	$hoverinfo_samples .= "'skip'";
 	$hoverinfo_nohits .= "'text'";
 	$hover_info_bisulfite_samples = substr( $hover_info_bisulfite_samples, 0, (length($hover_info_bisulfite_samples) - 2) );  #Remove trailing comma and space
-	
+
     #Read in template file
     my $html_string = '';
     open (TEMPLATE, '<', "$RealBin/fastq_screen_summary_template.html") or die "Could not open HTML summary template : $!";
@@ -991,7 +993,7 @@ sub make_html{
 	if(scalar @bisulfite_data){
 		my $bisulfite_graph_height = 100 * (scalar @bisulfite_data);
 		$bisulfite_graph_height = 500 if($bisulfite_graph_height < 500);
-		$html_string =~ s/INPUT_BISULFITE_GRAPH_DIV_HEIGHT/$bisulfite_graph_height/g;	
+		$html_string =~ s/INPUT_BISULFITE_GRAPH_DIV_HEIGHT/$bisulfite_graph_height/g;
 		$html_string =~ s/INPUT_HOVERINFO_BISULFITE_SAMPLES/$hover_info_bisulfite_samples/g;
 		$html_string =~ s/INPUT_BISULFITE_TO_REMOVE_START//g;
 		$html_string =~ s/INPUT_BISULFITE_TO_REMOVE_END//g;
@@ -1001,22 +1003,22 @@ sub make_html{
         $html_string =~ s/INPUT_PERC_CTOT/$pc_ctot/g;
         $html_string =~ s/INPUT_PERC_CTOB/$pc_ctob/g;
         $html_string =~ s/INPUT_PERC_OB/$pc_ob/g;
-		
-		
+
+
 		my $bis_hover_pc_ot = bis_hover_convert($pc_ot);
 		my $bis_hover_pc_ctot = bis_hover_convert($pc_ctot);
 		my $bis_hover_pc_ctob = bis_hover_convert($pc_ctob);
 		my $bis_hover_pc_ob = bis_hover_convert($pc_ob);
-		
+
 		$html_string =~ s/INPUT_HOVERTEXT_BISULFITE_PERC_OT/$bis_hover_pc_ot/g;
 		$html_string =~ s/INPUT_HOVERTEXT_BISULFITE_PERC_CTOT/$bis_hover_pc_ctot/g;
 		$html_string =~ s/INPUT_HOVERTEXT_BISULFITE_PERC_CTOB/$bis_hover_pc_ctob/g;
 		$html_string =~ s/INPUT_HOVERTEXT_BISULFITE_PERC_OB/$bis_hover_pc_ob/g;
-		
+
 
 	} else {    #Remove bisulfite graph and table
 		$html_string =~ s/INPUT_BISULFITE_TO_REMOVE_START.*?INPUT_BISULFITE_TO_REMOVE_END//gs;
-	}	
+	}
 
     $html_string =~ s/INPUT_FILENAME/$filename_to_display/g;
     $html_string =~ s/INPUT_SPECIES/$species_string/g;
@@ -1025,27 +1027,27 @@ sub make_html{
     $html_string =~ s/INPUT_PERC_ONE_HIT_MULTIPLE_GENOMES/$pc_one_hit_multiple_genomes_string/g;
     $html_string =~ s/INPUT_PERC_MULTIPLE_HITS_MUTLIPLE_GENOMES/$pc_multiple_hits_multiple_genomes_string/g;
 	$html_string =~ s/INPUT_GRAPH_DIV_HEIGHT/$graph_height/g;
-	
+
 	$html_string =~ s/INPUT_HOVERINFO_SAMPLES/$hoverinfo_samples/g;
 	$html_string =~ s/INPUT_HOVERINFO_NOHITS/$hoverinfo_nohits/g;
 	$html_string =~ s/INPUT_NOHITS_STRING/$nohits_string/;
- 	
+
 	$html_string =~ s/INPUT_PERC_HIT_NO_GENOMES/$pc_hit_no_genomes/g;
     $html_string =~ s/INPUT_DATESTAMP/$datestamp/g;
     $html_string =~ s/INPUT_TABLE_DATA/$table_string/g;
     $html_string =~ s/INPUT_VERSION/$version/g;
     $html_string =~ s/INPUT_MAPPING_PARAMETERS/$aligner/g;
     $html_string =~ s/INPUT_SUBSET/$subset/g;
-	
+
 	$html_string =~ s/INPUT_HOVERTEXT_PERC_ONE_HIT_ONE_GENOME/$hover_pc_one_hit_one_genome_string/g;
 	$html_string =~ s/INPUT_HOVERTEXT_PERC_MULTIPLE_HITS_ONE_GENOME/$hover_pc_multiple_hits_one_genome_string/g;
 	$html_string =~ s/INPUT_HOVERTEXT_PERC_ONE_HIT_MULTIPLE_GENOMES/$hover_pc_one_hit_multiple_genomes_string/g;
 	$html_string =~ s/INPUT_HOVERTEXT_PERC_MULTIPLE_HITS_MUTLIPLE_GENOMES/$hover_pc_multiple_hits_multiple_genomes_string/g;
 	$html_string =~ s/INPUT_HOVERTEXT_NOHITS_STRING/$hover_nohits_string/g;
-	
+
 	#Get the JavaScript code and insert into the template
 	#An alternative would be to download the code each time the output files are open, but
-	#embedding the text in the template will result in the HTML summary files 
+	#embedding the text in the template will result in the HTML summary files
 	#rendering correctly when offline.
 	my $js_code_file = "$RealBin/interactive_graphs.js";
 	my $js_code = '';
@@ -1055,22 +1057,22 @@ sub make_html{
     }
     close JS_CODE or die "Could not close filehandle on '$js_code_file' : $!";
 	$html_string =~ s/INPUT_INTERACTIVE_GRAPHS_JAVASCRIPT_CODE/$js_code/g;
-	
+
     #Write out results
     my $outfile = $summary_file;
     $outfile =~ s/\.txt$/.html/;
     open(HTML_OUT, '>', $outfile) or die "Could not write to summary HTML file '$outfile' : $!";
     print HTML_OUT $html_string;
     close HTML_OUT or die "Cannot close filehandle on HTML file '$outfile' : $!";
-	
-	
+
+
 	#Takes an array of mapping result and returns a string suitable for the plotly hover array
 	sub create_hover_string{
 		my @new;
 		foreach (@_){ push(@new, "'" . $_ . "'"); };
 		return(join(', ', @new) . ", '0'");
 	}
-	
+
 	#Takes the string of bisulifte results and converts to a string compatible for the hover text
 	sub bis_hover_convert{
 		my $input = "'" . $_[0];
@@ -1126,7 +1128,7 @@ sub bisulfite_mapping {
 			pop @elements;
 			$path_to_aligner_command = join('/', @elements) . '/';
 			$path_to_aligner_command = '--path_to_bowtie ' . $path_to_aligner_command;
-		}	
+		}
         $bismark_command = "$path_to_bismark $sam_output_option $path_to_aligner_command $bismark_opts --ambiguous --bowtie1 $bowtie_opts $illumina_flag --non_directional --prefix $prefix --output_dir $outdir $library->[1] $file 1>/dev/null 2>$error_filename";
     } else {    #Using Bowtie2
 
@@ -1136,7 +1138,7 @@ sub bisulfite_mapping {
 			pop @elements;
 			$path_to_aligner_command = join('/', @elements) . '/';
 			$path_to_aligner_command = '--path_to_bowtie ' . $path_to_aligner_command;   #Bismark uses --path_to_bowtie for Bowtie1 and Bowtie2
-		}	
+		}
 		$bismark_command = "$path_to_bismark $sam_output_option $path_to_aligner_command --score_min L,0,-0.6 $bismark_opts --ambiguous --bowtie2 $bowtie2_opts $illumina_flag --non_directional --prefix $prefix --output_dir $outdir $library->[1] $file 1>/dev/null 2>$error_filename";
     }
 
@@ -1178,7 +1180,7 @@ sub bisulfite_mapping {
 		}
 		${$index_genomes_ref}[$seqname] = record_hit( ${$index_genomes_ref}[$seqname], $library_index + 1 );
 
-		#Now determine the directionality of the read 
+		#Now determine the directionality of the read
 		my $read_conversion;
 		my $genome_conversion;
 		while ($line =~ /(XR|XG):Z:([^\t]+)/g){
@@ -1206,7 +1208,7 @@ sub bisulfite_mapping {
 			die "Unexpected combination of read and genome conversion: '$read_conversion' / '$genome_conversion'\n";
     	}
  	}
-	
+
 	#Multi-mapping reads have been written to "ambiguous" FASTQ files
 	#Extract the IDs and report as multi-mapping
 	my $ambiguous_file = basename($file);
@@ -1217,21 +1219,21 @@ sub bisulfite_mapping {
 		my $seqname = $_;
 		($seqname) = split(/\./, $seqname);
 		$seqname = substr($seqname, 1);   #Ignore @
-		
+
 		#Record twice, so reads from the ambiguous file are considered as multi-mapping
 		unless ( defined ${$index_genomes_ref}[$seqname] ) {
 		    ${$index_genomes_ref}[$seqname] = 0;    #Initialise - array may have 'gaps'
 		}
-		
+
 		${$index_genomes_ref}[$seqname] = record_hit( ${$index_genomes_ref}[$seqname], $library_index + 1 );
-		${$index_genomes_ref}[$seqname] = record_hit( ${$index_genomes_ref}[$seqname], $library_index + 1 );	
-		
+		${$index_genomes_ref}[$seqname] = record_hit( ${$index_genomes_ref}[$seqname], $library_index + 1 );
+
 		scalar <AMBIGUOUS_FILE>;   #Ignore rest of FASTQ read
 		scalar <AMBIGUOUS_FILE>;
 		scalar <AMBIGUOUS_FILE>;
 	}
 	close AMBIGUOUS_FILE  or die "Cannot close filehandle on '$ambiguous_file' : $!";
-	
+
     #Check the Standard Error and report any errors
     #Bowtie reports the alignment summary to standard error, so ignore the alignment summary
     while (<$error_fh>) {
@@ -1277,7 +1279,7 @@ sub conventional_mapping {
 
         #Check the read is aligned
         my ($seqname, $samFlag) = split( /\t/, $line );    #Extract the index id
-       	($seqname) = split(/\./, $seqname); 
+       	($seqname) = split(/\./, $seqname);
         next if $samFlag & 0x4;    #Did not align
 
         unless ( defined ${$index_genomes_ref}[$seqname] ) {
@@ -1289,9 +1291,9 @@ sub conventional_mapping {
     #Check the Standard Error output file and report any errors
     #Ignore Bowtie/Bowtie2/BWA STDERR alignment summaries
     while (<$error_fh>) {
-        unless ( /^\#/ or /^Reported/ or /^No alignments/ or /reads; of these/ 
-            or /were unpaired; of these/ or /aligned/ or /overall alignment rate/ 
-            or /mates make up the pairs; of these/ or /were paired; of these/ 
+        unless ( /^\#/ or /^Reported/ or /^No alignments/ or /reads; of these/
+            or /were unpaired; of these/ or /aligned/ or /overall alignment rate/
+            or /mates make up the pairs; of these/ or /were paired; of these/
             or /----/ or /^\[M::/ or /^\[main\]/) {
             warn "Aligner warning: $_";
         }
@@ -1382,9 +1384,9 @@ sub load_configuration {
                 }
             } elsif ( $name eq 'DATABASE' ) {
                 my ( undef, $database_name, $database_path ) = split( /\s+/, $_, 4 );
-				
-				next unless (defined $database_name) and (defined $database_path); 
-				
+
+				next unless (defined $database_name) and (defined $database_path);
+
                 if ( -e "$database_path.1.ebwt" ) {
                     $bowtie1_database_exists = 1;
                 }
@@ -1473,8 +1475,8 @@ sub load_configuration {
 
         elsif ( $name eq 'DATABASE' ) {
             my ( undef, $db_name, $db_path ) = split( /\s+/, $_ );
-			
-			next unless (defined $db_name) and (defined $db_path); 
+
+			next unless (defined $db_name) and (defined $db_path);
 
             if ( defined $bisulfite ) {
                 my $db_path_checked = check_bismark_genome_folder($db_path);
@@ -1519,7 +1521,7 @@ sub load_configuration {
             }
         }
     }
-	
+
 	if ($bisulfite) {
 		unless (defined $path_to_bismark) {
 			die "Path to Bismark neither specified nor detected automatically\n";
@@ -1541,18 +1543,18 @@ sub load_configuration {
     if($illumina and $aligner eq 'bwa'){
     	die "Cannot specify --illumina1_3 when using BWA as the alinger, specify Bowtie or Bowtie 2 instead.\n";
     }
-	
+
 	if(defined $tag){
 		die "No databases may be skipped when --tag option selected, please adjust configuration.\n" if($database_skipped_flag);
-		
+
 		if(defined $filter){
 			if(scalar @libraries != length $filter){
 				warn "User specified filter string of length " . length($filter) . ", but ". scalar @libraries . " genomes specified.\n";
-				die "Please adjust parameters.\n";	
+				die "Please adjust parameters.\n";
 			}
 		}
 	}
-	
+
 	#Check that aligner and possibly Bismark are functional
 	if($aligner eq 'bowtie'){
 		die "Aligner $aligner not exectable at '$path_to_bowtie', please adjust configuration.\n" unless( (-x $path_to_bowtie) or ($path_to_bowtie eq 'bowtie') );   #The path is not executable
@@ -1565,7 +1567,7 @@ sub load_configuration {
 	if ($bisulfite and (defined $path_to_bismark) ) {
 		die "Bismark not exectable at '$path_to_bismark', please adjust configuration.\n" unless( (-x $path_to_bismark) or ($path_to_bismark eq 'bismark') );   #The path is not executable
 	}
-	
+
     close CONF or die "Could not close filehandle on '$conf_file' : $!";
 }
 
@@ -1607,7 +1609,7 @@ sub subset {
     my $current_count  = 0;
     my $readsprocessed = 0;    # Stores the total number of sequences searched - initialise at 0 to match array index
     while (<IN_SUBSET>) {
- 
+
 		my $record = $_;
 		$record = substr( $record, 1 );
 		$record = '@' . "$readsprocessed.$record";    #Begin header with index
@@ -1740,7 +1742,7 @@ sub make_graph {
     $graph->set_y_axis_font( "$RealBin/OpenSans-Regular.ttf", 8 );
     $graph->set_text_clr("black");
 
-    $graph->set_legend( 'One hit\one genome', 'Multiple hits\one genome', 
+    $graph->set_legend( 'One hit\one genome', 'Multiple hits\one genome',
     	'One hit\multiple genomes', 'Multiple hits\multiple genomes', 'No hits' );
 
     $graph->set(
@@ -1779,7 +1781,7 @@ sub make_bisulfite_graph {
     my $ignore_lines = 1;
 	my $truncated_max_name_length = 13;   #Very long names will overlap, so truncate here
 
-    while (<IN_BIS_GRAPH>) {       
+    while (<IN_BIS_GRAPH>) {
     	my $line = $_;
         chomp $line;
 
@@ -1813,9 +1815,9 @@ sub make_bisulfite_graph {
     $graph->set_y_axis_font( "$RealBin/OpenSans-Regular.ttf", 8 );
     $graph->set_text_clr("black");
 
-    $graph->set_legend( 'Original top strand', 
-    	'Complementary to original top strand', 
-    	'Complementary to original bottom strand', 
+    $graph->set_legend( 'Original top strand',
+    	'Complementary to original top strand',
+    	'Complementary to original bottom strand',
     	'Original bottom strand');
 
     $graph->set(
@@ -1850,11 +1852,13 @@ sub find_no_hits {
 
     open( IN_NOHITS, '<', $file ) or die "Can't read '$file' : $!";
 
+    warn "HERE: threads=$number_of_threads";
     if ($zip_data_output) {    #Declared outside of subroutine
         if ($number_of_threads > 1) {
-            open ( OUT_NOHITS, "| pigz --processes $number_of_threads - > $outfile" ) or die "Couldn't write to file '$outfile' : $!";
+            warn "Compressing with pigz using $number_of_threads threads\n" unless ($quiet);
+            open ( OUT_NOHITS, "| pigz --processes $number_of_threads -c - > $no_hits_filename" ) or die "Couldn't write to file '$no_hits_filename' : $!";
         } else {
-            open( OUT_NOHITS, "| gzip -c - > $outfile" ) or die "Couldn't write to file '$outfile' : $!";
+            open( OUT_NOHITS, "| gzip -c - > $no_hits_filename" ) or die "Couldn't write to file '$no_hits_filename' : $!";
         }
     } else {
         open( OUT_NOHITS, ">$no_hits_filename" ) or die "Could not write to '$no_hits_filename' : $!";
@@ -1898,11 +1902,13 @@ sub tag_reads {
 
     open( IN_TAG, '<', $file ) or die "Can't read '$file' : $!";
 
+    warn "HERE: threads=$number_of_threads";
     if ($zip_data_output) {    #Declared outside of subroutine
         if ($number_of_threads > 1) {
-            open ( OUT_TAG, "| pigz --processes $number_of_threads - > $outfile" ) or die "Couldn't write to file '$outfile' : $!";
+            warn "Compressing with pigz using $number_of_threads threads\n" unless ($quiet);
+            open ( OUT_TAG, "| pigz --processes $number_of_threads -c - > $tagged_filename" ) or die "Couldn't write to file '$tagged_filename' : $!";
         } else {
-            open( OUT_TAG, "| gzip -c - > $outfile" ) or die "Couldn't write to file '$outfile' : $!";
+            open( OUT_TAG, "| gzip -c - > $tagged_filename" ) or die "Couldn't write to file '$tagged_filename' : $!";
         }
     } else {
         open( OUT_TAG, ">$tagged_filename" ) or die "Could not write to '$tagged_filename' : $!";
@@ -1924,7 +1930,7 @@ sub tag_reads {
         my $tag;
 
         if ( !defined ${$index_genomes_ref}[$seq_id] ) {    #Does not exist in array - this is possible since array's last entry is last read that mapped (if only mapping reads returned by bowtie)
-           $tag = 0 x $number_of_genomes; 
+           $tag = 0 x $number_of_genomes;
         } elsif ( ${$index_genomes_ref}[$seq_id] == 0 ) {
            $tag = 0 x $number_of_genomes;    #0 may be used to denote no read mapping to any library
         } else{
@@ -2092,7 +2098,7 @@ sub check_bismark_genome_folder {    #Edit this later
 			chdir $original_folder or die "Failed to return to original working directory\n";
 			return undef;
 		}
-		
+
         my @CT_bowtie_index = ( 'BS_CT.1.bt2', 'BS_CT.2.bt2', 'BS_CT.3.bt2', 'BS_CT.4.bt2', 'BS_CT.rev.1.bt2', 'BS_CT.rev.2.bt2' );
         foreach my $file (@CT_bowtie_index) {
             unless ( -f $file ) {
@@ -2103,7 +2109,7 @@ sub check_bismark_genome_folder {    #Edit this later
 
         # checking the integrity of $GA_dir
         #chdir $GA_dir or die "Failed to move to directory $GA_dir: $!\n";
-		
+
 		unless(chdir $GA_dir){
 			chdir $original_folder or die "Failed to return to original working directory\n";
 			return undef;
@@ -2126,13 +2132,13 @@ sub check_bismark_genome_folder {    #Edit this later
             ### If no small small indexes were found we look for large indexes (64-bit indexes, ending in .bt2l)
 
             # checking the integrity of $CT_dir
-            #chdir $CT_dir or die "Failed to move to directory $CT_dir: $!\n";		
+            #chdir $CT_dir or die "Failed to move to directory $CT_dir: $!\n";
 			unless(chdir $CT_dir){
 				chdir $original_folder or die "Failed to return to original working directory\n";
 				return undef;
 			}
-			
-			
+
+
             @CT_bowtie_index = ( 'BS_CT.1.bt2l', 'BS_CT.2.bt2l', 'BS_CT.3.bt2l', 'BS_CT.4.bt2l', 'BS_CT.rev.1.bt2l', 'BS_CT.rev.2.bt2l' );
             foreach my $file (@CT_bowtie_index) {
                 unless ( -f $file ) {
@@ -2149,7 +2155,7 @@ sub check_bismark_genome_folder {    #Edit this later
 				chdir $original_folder or die "Failed to return to original working directory\n";
 				return undef;
 			}
-						
+
             @GA_bowtie_index = ( 'BS_GA.1.bt2l', 'BS_GA.2.bt2l', 'BS_GA.3.bt2l', 'BS_GA.4.bt2l', 'BS_GA.rev.1.bt2l', 'BS_GA.rev.2.bt2l' );
 
             foreach my $file (@GA_bowtie_index) {
@@ -2178,7 +2184,7 @@ sub check_bismark_genome_folder {    #Edit this later
 				chdir $original_folder or die "Failed to return to original working directory\n";
 				return undef;
 			}
-					
+
         my @CT_bowtie_index = ( 'BS_CT.1.ebwt', 'BS_CT.2.ebwt', 'BS_CT.3.ebwt', 'BS_CT.4.ebwt', 'BS_CT.rev.1.ebwt', 'BS_CT.rev.2.ebwt' );
         foreach my $file (@CT_bowtie_index) {
             unless ( -f $file ) {
@@ -2188,13 +2194,13 @@ sub check_bismark_genome_folder {    #Edit this later
 			}
         }
         ### checking the integrity of $GA_dir
-        #chdir $GA_dir or die "Failed to move to directory $GA_dir: $!\n";		
+        #chdir $GA_dir or die "Failed to move to directory $GA_dir: $!\n";
 		unless(chdir $GA_dir){
 			chdir $original_folder or die "Failed to return to original working directory\n";
 			return undef;
 		}
-		
-		
+
+
         my @GA_bowtie_index = ( 'BS_GA.1.ebwt', 'BS_GA.2.ebwt', 'BS_GA.3.ebwt', 'BS_GA.4.ebwt', 'BS_GA.rev.1.ebwt', 'BS_GA.rev.2.ebwt' );
         foreach my $file (@GA_bowtie_index) {
             unless ( -f $file ) {
@@ -2206,7 +2212,7 @@ sub check_bismark_genome_folder {    #Edit this later
     }
 
 	chdir $original_folder or die "Failed to return to original working directory\n";
-	
+
     return $genome_folder;    #Genome ok
                               # my $CT_index_basename = "${CT_dir}BS_CT";
                               # my $GA_index_basename = "${GA_dir}BS_GA";
@@ -2230,7 +2236,7 @@ sub convert2tag {
     #Only report if the read does not map to the genome of interest (0), maps
     #uniquely (1) or multi-maps (2)
     $tag =~ tr/34/12/;
-    
+
     return $tag;
 }
 
@@ -2240,25 +2246,25 @@ sub convert2tag {
 #Subroutine: calc_perc
 #Receives a number and a total and returns the perentage value
 #Optional argument: decimal places of the output
-#Subroutine rounds following the sprintf rounding protocol 
+#Subroutine rounds following the sprintf rounding protocol
 sub calc_perc {
     my ( $n, $total, $dp ) = @_;
-    
+
     if(defined $dp){
         $dp = abs( int($dp) );
     }else{
         $dp = 2;
     }
-    
+
     return 'NA' unless(defined $n and defined $total);   #Avoid initialisation error
     return 'NA' if($total == 0);    #Avoid division by zero error
-    
+
     my $pc = 100 * $n / $total;
     my $pc_string = '%.' . $dp . 'f';
 
     $pc = sprintf("$pc_string", $pc);
 
-    
+
     return $pc;
 }
 
@@ -2366,23 +2372,23 @@ sub pass_filter_data {
 	my ($header) = @_;
 	my $tag = (split(':', $header))[-1];
 	chomp $tag;
-	
+
 	unless($tag =~ /^\d+$/){
 		warn "Header found without proper digit-only tag:\n$header\n";
 		die "Please check this is a tag file (see documentation for assistance).\n";
 	}
-	
+
 	unless (length($filter) == length($tag)){    #Declared outside subroutine
 		warn "User specified filter string of length " . length($filter) . ", but tag has length " . length($tag) . "\n";
 		die "Please adjust parameters.\n";
 	}
-	
+
 	my $filters_required_to_pass;
 	if(defined $pass){
 		$filters_required_to_pass = $pass;
 	} else {
 		my $non_active_filters = ($filter =~ tr/-//); #Count number of hyphens
-		$filters_required_to_pass = (length $filter) - $non_active_filters;	
+		$filters_required_to_pass = (length $filter) - $non_active_filters;
 	}
 
 	my $passes = 0;
@@ -2390,46 +2396,46 @@ sub pass_filter_data {
 		for (my $i = 0; $i < length($tag); $i++){
 			my $tag_value = substr($tag, $i, 1);
 			my $filter_value = substr($filter, $i, 1);
-			
+
 			next if($filter_value eq '-');
-			
+
 			if($tag_value == 0){
 				if( ($filter_value == 0) or ($filter_value == 4) or ($filter_value == 5) ){
 					$passes++;
 				}
-			
+
 			} elsif($tag_value == 1) {
 				if( ($filter_value == 1) or ($filter_value == 3) or ($filter_value == 4) ){
 					$passes++;
 				}
-					
+
 			} elsif($tag_value == 2) {
 				if( ($filter_value == 2) or ($filter_value == 3) or ($filter_value == 5) ){
 					$passes++;
 				}
 			}
-			
+
 			return 1 if($passes == $filters_required_to_pass);    #May speed up subroutine to end loop here
-		}	
-		return 0;    #Did not pass enough filters		
+		}
+		return 0;    #Did not pass enough filters
 }
 
 #Subroutine filter_data
 #Downloads Bowtie2 indices to current working directory or to the --outdir
 sub get_genomes{
-	
+
 	my $cwd = getcwd;
-	
+
 	#Download configuration files and indices
 	chdir $outdir;
 	print "Downloading FastQ Screen Genomes\n";
-		
+
 	#Download a text file to determine where the genomes are kept. Doing this (instead of downloading the
 	#genomes directly) means the genomes may be moved to new locations without requiring changes to this
 	#script.  At present, the genomes are stored on Babraham FTP1 (valid for 1 year), but they should be moved
 	#to a permanent location on the webserver, when more space is made available.
 	my $location_file = 'www.bioinformatics.babraham.ac.uk/projects/fastq_screen/genome_locations.txt';
-	my $command = "wget --no-check-certificate $location_file";	
+	my $command = "wget --no-check-certificate $location_file";
 	!system($command) or die "Could not run command '$command'\n";
 	$location_file = 'genome_locations.txt';
 	open(LOCATION, '<', $location_file) or die "Could not open '$location_file' : $!";
@@ -2438,8 +2444,8 @@ sub get_genomes{
 	chomp $download_folder;
 	close LOCATION or die "Could not close '$location_file' : $!";
 	unlink('genome_locations.txt');
-	
-	
+
+
 	$command = "wget --no-check-certificate -r --no-parent -R 'index.html*' $download_folder" ;
 	!system($command) or die "Could not run command '$command'\n";
 	$command = "mv $download_folder " . $outdir;
@@ -2447,7 +2453,7 @@ sub get_genomes{
 
 	#rmtree("www.bioinformatics.babraham.ac.uk");
 	rmtree((split(/\//, $download_folder))[0]);
-	
+
 	#Read in the configuration file
 	my $conf_file;
 	if($bisulfite){
@@ -2457,7 +2463,7 @@ sub get_genomes{
 	}
 
 	open(CONF_IN, '<', $conf_file) or die "Could not open '$conf_file' : $!";
-	
+
 	my $conf_script_text = '';
 	my $downloaded_genomes_folder = $outdir;
 	if($bisulfite){
@@ -2465,26 +2471,26 @@ sub get_genomes{
 	} else {
 		$downloaded_genomes_folder .= 'FastQ_Screen_Genomes';
 	}
-	
+
 	while(<CONF_IN>){
 		my $line = $_;
 		if($line =~ /^DATABASE/){
 			$line =~ s/\[FastQ_Screen_Genomes_Path\]/$downloaded_genomes_folder/;
 			$line =~ s/\/\//\//g;   #Remove double forward slash
-		}	
+		}
 		$conf_script_text .= $line;
 	}
-		
+
 	close CONF_IN or die "Could not close '$conf_file' : $!";
-	
-	
+
+
 	#Edit the configuration file text to add the correct genome path
 	open(CONF_OUT, '>', $conf_file) or die "Could not write to '$conf_file' : $!";
-	print CONF_OUT $conf_script_text;	
+	print CONF_OUT $conf_script_text;
 	close CONF_OUT or die "Could not close '$conf_file' after editing : $!";
-	
+
 	chdir $cwd;
-	
+
 	#Notes to user
 	print "*****************************\n";
 	print "Genomes downloaded to $downloaded_genomes_folder\n";
@@ -2497,7 +2503,7 @@ sub get_genomes{
 
 
 __DATA__
-    
+
 FastQ Screen - Map sequences against multiple genomes
 
 www.bioinformatics.babraham.ac.uk/projects/fastq_screen
@@ -2517,65 +2523,65 @@ Function
 Options
 
  --add_genome <text>  Edits the file 'fastq_screen.conf' (in the folder where
-                      this script is saved) to add a new genome. Specify the 
+                      this script is saved) to add a new genome. Specify the
                       additional genome as a comma separated list:
                       'Database name','Genome path and basename','Notes'
 
- --aligner <func>     Specify the aligner to use for the mapping. Valid 
-                      arguments are 'bowtie', bowtie2' (default) or 'bwa'.  
-                      Bowtie maps with parameters -k 2, Bowtie 2 with 
-                      parameters -k 2 --very-fast-local and BWA with mem -a.  
-                      Local aligners such as BWA or Bowtie2 will be better 
-                      at detecting the origin of chimeric reads. 
+ --aligner <func>     Specify the aligner to use for the mapping. Valid
+                      arguments are 'bowtie', bowtie2' (default) or 'bwa'.
+                      Bowtie maps with parameters -k 2, Bowtie 2 with
+                      parameters -k 2 --very-fast-local and BWA with mem -a.
+                      Local aligners such as BWA or Bowtie2 will be better
+                      at detecting the origin of chimeric reads.
 
- --bisulfite          Process bisulfite libraries. The path to the 
-                      bisulfite aligner (Bismark) may be specified in the 
-                      configuration file. Bismark runs in non-directional 
+ --bisulfite          Process bisulfite libraries. The path to the
+                      bisulfite aligner (Bismark) may be specified in the
+                      configuration file. Bismark runs in non-directional
                       mode. Either conventional or bisulfite libraries may
-                      be processed, but not both simultaneously. The 
-                      --bisulfite option cannot be used in conjunction with 
+                      be processed, but not both simultaneously. The
+                      --bisulfite option cannot be used in conjunction with
                       --bwa.
 
- --bismark <text>     Specify extra parameters to be passed to Bismark. 
-                      These parameters should be quoted to clearly 
-                      delimit Bismark parameters from FastQ Screen 
-                      parameters.                      
+ --bismark <text>     Specify extra parameters to be passed to Bismark.
+                      These parameters should be quoted to clearly
+                      delimit Bismark parameters from FastQ Screen
+                      parameters.
 
- --bowtie <text>      Specify extra parameters to be passed to Bowtie. 
-                      These parameters should be quoted to clearly 
-                      delimit bowtie parameters from FastQ Screen 
-                      parameters. You should not try to use this option 
-                      to override the normal search or reporting options 
-                      for bowtie which are set automatically but it might 
+ --bowtie <text>      Specify extra parameters to be passed to Bowtie.
+                      These parameters should be quoted to clearly
+                      delimit bowtie parameters from FastQ Screen
+                      parameters. You should not try to use this option
+                      to override the normal search or reporting options
+                      for bowtie which are set automatically but it might
                       be useful to allow reads to be trimmed before
                       alignment etc.
 
- --bowtie2 <text>     Specify extra parameters to be passed to Bowtie 2. 
-                      These parameters should be quoted to clearly 
-                      delimit Bowtie 2 parameters from FastQ Screen 
-                      parameters. You should not try to use this option 
-                      to override the normal search or reporting options 
-                      for bowtie which are set automatically but it might 
+ --bowtie2 <text>     Specify extra parameters to be passed to Bowtie 2.
+                      These parameters should be quoted to clearly
+                      delimit Bowtie 2 parameters from FastQ Screen
+                      parameters. You should not try to use this option
+                      to override the normal search or reporting options
+                      for bowtie which are set automatically but it might
                       be useful to allow reads to be trimmed before
-                      alignment etc.  
+                      alignment etc.
 
- --bwa <text>         Specify extra parameters to be passed to BWA. 
-                      These parameters should be quoted to clearly 
-                      delimit BWA parameters from FastQ Screen 
-                      parameters. You should not try to use this option 
-                      to override the normal search or reporting options 
-                      for BWA which are set automatically but it might 
+ --bwa <text>         Specify extra parameters to be passed to BWA.
+                      These parameters should be quoted to clearly
+                      delimit BWA parameters from FastQ Screen
+                      parameters. You should not try to use this option
+                      to override the normal search or reporting options
+                      for BWA which are set automatically but it might
                       be useful to allow reads to be trimmed before
-                      alignment etc. 
+                      alignment etc.
 
  --conf <path>        Manually specify a location for the configuration.
- 
- --filter <text>      Produce a FASTQ file containing reads mapping to 
+
+ --filter <text>      Produce a FASTQ file containing reads mapping to
                       specified genomes. Pass the argument a string of
-                      characters (0, 1, 2, 3, -), in which each character 
-                      corresponds to a reference genome (in the order the 
-                      reference genome occurs in the configuration file).  
-                      Below gives an explanation of each character.		
+                      characters (0, 1, 2, 3, -), in which each character
+                      corresponds to a reference genome (in the order the
+                      reference genome occurs in the configuration file).
+                      Below gives an explanation of each character.
                       0: Read does not map
                       1: Read maps uniquely
                       2: Read multi-maps
@@ -2583,30 +2589,30 @@ Options
                       4: Passes filter 0 or filter 1
                       5: Passes filter 0 or filter 2
                       -: Do not apply filter to this genome
-				
-                      Consider mapping to three genomes (A, B and C), the 
-                      string '003' produces a file in which reads do not 
-                      map to genomes A or B, but map (once or more) to 
-                      genome C.  The string '--1' would generate a file in 
-                      which reads uniquely map to genome C. Whether reads 
+
+                      Consider mapping to three genomes (A, B and C), the
+                      string '003' produces a file in which reads do not
+                      map to genomes A or B, but map (once or more) to
+                      genome C.  The string '--1' would generate a file in
+                      which reads uniquely map to genome C. Whether reads
                       map to genome A or B would be ignored.
-					  
+
                       A read needs to pass all the genome filters to be
                       considered valid (unless --pass specified).
-			   
+
                       When --filter is used in conjuction with --tag, FASTQ
                       files shall be mapped, tagged and then filtered. If
-                      the --tag option is not selected however, the input 
+                      the --tag option is not selected however, the input
                       FASTQ file should have been previously tagged.
-				
+
  --force              Do not terminate if output files already exist,
                       instead overwrite the files.
- 
+
  --get_genomes        Download pre-indexed Bowtie2 genomes for a range of
                       commonly studied species and sequences. If used with
                       --bisulfite, Bismark bisulfite Bowtie2 indices will
-                      be downloaded instead.					  
-					  
+                      be downloaded instead.
+
  --help               Print program help and exit.
 
  --illumina1_3        Assume that the quality values are in encoded in
@@ -2614,75 +2620,75 @@ Options
                       if this flag is not specified.
 
  --inverse            Inverts the --filter results i.e. reads that pass
-                      the --filter parameter will not pass when 
+                      the --filter parameter will not pass when
                       --filter --inverse are specified together, and vice
-                      versa.					  
+                      versa.
 
- --nohits             Writes to a file the sequences that did not map to 
-                      any of the specified genomes. This option is 
+ --nohits             Writes to a file the sequences that did not map to
+                      any of the specified genomes. This option is
                       equivalent to specifying --tag --filter 0000 (number
                       of zeros corresponds to the number of genomes
                       screened).  By default the whole input file will be
-                      mapped, unless overridden by --subset.				
+                      mapped, unless overridden by --subset.
 
  --outdir <text>      Specify a directory in which to save output files.
                       If no directory is specified then output files
                       are saved in the current working directory.
-					  
+
  --pass <int>         Used in conjunction with --filter. By default all
                       genome filters must be passed for a read to pass
-                      the --filter option.  However, a minimum number 
+                      the --filter option.  However, a minimum number
                       of genome filters may be specified that a read
                       needs pass to be considered to pass the --filter
                       option. (--pass 1 effecitively acts as an OR
-                      boolean operator for the genome filters.)					  
-					  
+                      boolean operator for the genome filters.)
+
  --quiet              Suppress all progress reports on stderr and only
                       report errors.
 
- --subset <int>       Don't use the whole sequence file, but create a 
-                      temporary dataset of this specified number of 
-                      reads. The dataset created will be of 
-                      approximately (within a factor of 2) of this size. 
-                      If the real dataset is smaller than twice the 
-                      specified size then the whole dataset will be used. 
-                      Subsets will be taken evenly from throughout the 
-                      whole original dataset. By Default FastQ Screen 
+ --subset <int>       Don't use the whole sequence file, but create a
+                      temporary dataset of this specified number of
+                      reads. The dataset created will be of
+                      approximately (within a factor of 2) of this size.
+                      If the real dataset is smaller than twice the
+                      specified size then the whole dataset will be used.
+                      Subsets will be taken evenly from throughout the
+                      whole original dataset. By Default FastQ Screen
                       runs with this parameter set to 100000. To process
                       an entire dataset however, adjust --subset to 0.
 
---tag                 Label each FASTQ read header with a tag listing to 
-                      which genomes the read did, or did not align. The 
-                      first read in the output FASTQ file will list the 
-                      full genome names along with a score denoting 
-                      whether the read did not align (0), aligned 
-                      uniquely to the specified genome (1), or aligned 
-                      more than once (2). In subsequent reads the 
-                      genome names are omitted and only the score is 
+--tag                 Label each FASTQ read header with a tag listing to
+                      which genomes the read did, or did not align. The
+                      first read in the output FASTQ file will list the
+                      full genome names along with a score denoting
+                      whether the read did not align (0), aligned
+                      uniquely to the specified genome (1), or aligned
+                      more than once (2). In subsequent reads the
+                      genome names are omitted and only the score is
                       printed, in the same order as the first line.
 
-                      This option results in the he whole file being 
-                      processed unless overridden explicitly by the user 
-                      with the --subset parameter 
+                      This option results in the he whole file being
+                      processed unless overridden explicitly by the user
+                      with the --subset parameter
 
 --threads <int>       Specify across how many threads bowtie will be
                       allowed to run. Overrides the default value set
                       in the configuration file
 
---top <int>/<int,int> Don't use the whole sequence file, but create a 
-                      temporary dataset of the specified number of 
+--top <int>/<int,int> Don't use the whole sequence file, but create a
+                      temporary dataset of the specified number of
                       reads taken from the top of the original file. It is
                       also possible to specify the number of lines to skip
-                      before beginning the selection e.g. 
-                      --top 100000,5000000 skips the first five million 
-                      reads and selects the subsequent one hundred thousand 
-                      reads. While this option is usually faster than 
-                      comparable --subset operations, it does not prevent 
-                      biases arising from non-uniform distribution of 
-                      reads in the original FastQ file. This option should 
-                      only be used when minimising processing time is of 
-                      highest priority. 
+                      before beginning the selection e.g.
+                      --top 100000,5000000 skips the first five million
+                      reads and selects the subsequent one hundred thousand
+                      reads. While this option is usually faster than
+                      comparable --subset operations, it does not prevent
+                      biases arising from non-uniform distribution of
+                      reads in the original FastQ file. This option should
+                      only be used when minimising processing time is of
+                      highest priority.
 
 --version             Print the program version and exit.
 
-2020 Babraham Institute, Cambridge, UK 
+2020 Babraham Institute, Cambridge, UK
